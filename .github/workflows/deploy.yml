@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Replace API Key in config.js
+        run: |
+          if [ -z "${{ secrets.GOOGLE_MAPS_API_KEY }}" ]; then
+            echo "ERROR: GOOGLE_MAPS_API_KEY secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          # Escape special characters in the API key for sed
+          API_KEY=$(echo "${{ secrets.GOOGLE_MAPS_API_KEY }}" | sed 's/[[\.*^$()+?{|]/\\&/g')
+          sed -i "s/PLACEHOLDER/${API_KEY}/g" config.js
+          echo "API key replaced in config.js"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
